@@ -1,0 +1,2 @@
+redash.jdbc.RedashDriver
+org.leoneti.jdbc.redash.RedashDriver
