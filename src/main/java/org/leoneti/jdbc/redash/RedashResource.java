@@ -18,7 +18,7 @@ import java.util.PropertyResourceBundle;
 import java.util.ResourceBundle;
 
 public class RedashResource {
-    private static ResourceBundle messages = PropertyResourceBundle.getBundle(String.format("%s.messages", RedashResource.class.getPackageName()), Locale.getDefault());
+    private static ResourceBundle messages = PropertyResourceBundle.getBundle(String.format("%s.messages", RedashResource.class.getPackage().getName()), Locale.getDefault());
 
     public static String getString(String key) {
         try {
