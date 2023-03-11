@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -12,18 +12,19 @@
 *****************************************************************************************/
 package org.leoneti.jdbc.iterable;
 
+import java.sql.JDBCType;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.util.Map;
 
 import org.leoneti.jdbc.GenericResultSetMetaData;
 
 public class MapResultSetMetaData extends GenericResultSetMetaData {
 
-    private Map<String,String> maptypes;
+    private Map<String,JDBCType> maptypes;
 
-    public MapResultSetMetaData(boolean trace, Map<String, String> maptypes) {
+    public MapResultSetMetaData(boolean trace, Map<String, JDBCType> maptypes) {
         super(trace, MapResultSetMetaData.class);
         this.maptypes = maptypes;
     }
@@ -60,19 +61,7 @@ public class MapResultSetMetaData extends GenericResultSetMetaData {
     
     public int getColumnType(String colname) throws SQLException {
         logMethodWithReturn("getColumnType", maptypes.get(colname), colname);
-
-    	if( maptypes.get(colname) == null )
-            return Types.VARCHAR;
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return Types.TIMESTAMP;
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-        	|| maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return Types.BIGINT;
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return Types.DECIMAL;
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return Types.BOOLEAN;
-        return Types.VARCHAR;
+        return (maptypes.containsKey(colname) && maptypes.get(colname) != null) ? maptypes.get(colname).getVendorTypeNumber() : JDBCType.NULL.getVendorTypeNumber();
     }
     
     @Override
@@ -85,36 +74,32 @@ public class MapResultSetMetaData extends GenericResultSetMetaData {
     public String getColumnTypeName(int column) throws SQLException {
         logMethod("getColumnTypeName", column);
         
-        String colname = getColumnName(column);
-    	if( maptypes.get(colname) == null )
-            return "VARCHAR";
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return "TIMESTAMP";
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-        	|| maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return "BIGINT";
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return "DECIMAL";
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return "BOOLEAN";
-        return "VARCHAR";
+        final String colname = getColumnName(column);
+        return (maptypes.containsKey(colname) && maptypes.get(colname) != null) ? maptypes.get(colname).name() : JDBCType.NULL.name();
     }
 
     @Override
     public String getColumnClassName(int column) throws SQLException {
-        String colname = getColumnName(column);
-        if( maptypes.get(colname) == null )
+        final String colname = getColumnName(column);
+        switch(maptypes.get(colname)) {
+        case TIMESTAMP:
+        case TIMESTAMP_WITH_TIMEZONE: return Timestamp.class.getName();
+        case TIME:
+        case TIME_WITH_TIMEZONE: return Time.class.getName();
+        case INTEGER:
+        case BIGINT:
+        case SMALLINT:
+        case TINYINT: return Long.class.getName();
+        case DECIMAL:
+        case FLOAT:
+        case DOUBLE:
+        case REAL:
+        case NUMERIC: return Double.class.getName();
+        case BOOLEAN: return Boolean.class.getName();
+        default:
             return String.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return Timestamp.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-            || maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return Long.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return Double.class.getName();;
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return Boolean.class.getName();;
-        return String.class.getName();
+        }
+
     }
 
     @Override

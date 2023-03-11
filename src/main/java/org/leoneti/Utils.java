@@ -13,8 +13,7 @@
 package org.leoneti;
 
 import java.math.BigDecimal;
-import java.sql.Connection;
-import java.util.Map.Entry;
+import java.sql.JDBCType;
 import java.util.logging.Logger;
 
 import org.leoneti.jdbc.redash.RedashConnection;
@@ -47,6 +46,25 @@ public class Utils {
     
     public static void logMethod(String method, Object... param) {
         log.info(String.format("%s(%s)", method, formatParameters(param)));
+    }
+    
+    public static JDBCType toJDBCType(String type) {
+        try {
+            final String uType = type.toUpperCase();
+            switch(uType) {
+                case "TIMESTAMP WITH TIME ZONE": return JDBCType.TIMESTAMP_WITH_TIMEZONE;
+                case "DATETIME": return JDBCType.TIMESTAMP;
+                case "TEXT":
+                case "CHARACTER VARYING": return JDBCType.VARCHAR;
+                case "JSON": return JDBCType.JAVA_OBJECT;
+                case "BYTEA": return JDBCType.BLOB;
+                case "TIME WITH TIME ZONE": return JDBCType.TIME_WITH_TIMEZONE;
+                default:
+                    return JDBCType.valueOf( uType );
+            }
+        } catch(Exception e) {
+            return JDBCType.VARCHAR;
+        }
     }
 
     public static void main(String[] args) {

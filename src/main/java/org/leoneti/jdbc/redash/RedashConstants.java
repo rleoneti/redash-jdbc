@@ -28,6 +28,8 @@ public @interface RedashConstants {
 
     public static final String DRIVER_PROPERTY_TRACE = "trace";
     
+    public static final String DEFAULT_SCHEMA = "DEFAULT";
+    
     
     /*****************
      * HTTP Constants

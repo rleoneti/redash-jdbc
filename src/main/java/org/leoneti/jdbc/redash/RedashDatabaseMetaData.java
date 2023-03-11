@@ -13,8 +13,10 @@
 package org.leoneti.jdbc.redash;
 
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,6 +25,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.leoneti.jdbc.GenericDatabaseMetaData;
 import org.leoneti.jdbc.iterable.MapResultSet;
+import static org.leoneti.Utils.toJDBCType;
 
 public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
 
@@ -58,8 +61,8 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
         return redashServerVersion;
     }
     
-    public String getUserEmail() {
-        return userEmail;
+    public String getName() {
+        return userName;
     }
     
     public int getUserId() {
@@ -76,8 +79,8 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
             sc.put("TABLE_CAT", ((JSONObject)obj).getString("name") );
             rows.add( sc );
         }
-        Map<String,String> types = new LinkedHashMap<>();
-        types.put("TABLE_CAT", "string");
+        Map<String,JDBCType> types = new LinkedHashMap<>();
+        types.put("TABLE_CAT", JDBCType.VARCHAR);
         return new MapResultSet(this.isTraced(), rows, types);
     }
     
@@ -127,7 +130,7 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
                     schema = tmp[0];
                     tbname = tmp[1];
                 } else {
-                    schema = "DEFAULT";
+                    schema = RedashConstants.DEFAULT_SCHEMA;
                     tbname = name;
                 }
                 if( !dsInfo.has(schema) ) 
@@ -145,7 +148,7 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
 
     @Override
     public ResultSet getSchemas() throws SQLException {
-        logMethod("getSchemas");
+        logMethod_("getSchemas", true);
         return getSchemas(con.getDs(),"%");
     }
 
@@ -166,8 +169,8 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
             sc.put("TABLE_SCHEM", schema);
             rows.add( sc );
         }
-        final Map<String,String> types = new LinkedHashMap<>();
-        types.put("TABLE_SCHEM", "string");
+        final Map<String,JDBCType> types = new LinkedHashMap<>();
+        types.put("TABLE_SCHEM", JDBCType.VARCHAR);
         return new MapResultSet(this.isTraced(), rows, types);
     }
 
@@ -196,12 +199,12 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
                 rows.add( sc );
             }
         }
-        final Map<String,String> rstypes = new LinkedHashMap<>();
-        rstypes.put("TABLE_CAT", "string");
-        rstypes.put("TABLE_SCHEM", "string");
-        rstypes.put("TABLE_NAME", "string");
-        rstypes.put("TABLE_TYPE", "string");
-        rstypes.put("REMARKS", "string");
+        final Map<String,JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("TABLE_CAT", JDBCType.VARCHAR);
+        rstypes.put("TABLE_SCHEM", JDBCType.VARCHAR);
+        rstypes.put("TABLE_NAME", JDBCType.VARCHAR);
+        rstypes.put("TABLE_TYPE", JDBCType.VARCHAR);
+        rstypes.put("REMARKS", JDBCType.VARCHAR);
         return new MapResultSet(this.isTraced(), rows, rstypes);
     }
 
@@ -223,14 +226,23 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
             for(String table : dsInfo.getJSONObject(schema).keySet() ) {
                 if( curTableNamePattern!=null && !table.matches(curTableNamePattern) ) continue;
                 for(Object column : dsInfo.getJSONObject(schema).getJSONArray(table) ) {
-                    if( curColumnNamePattern!=null && !column.toString().matches(curColumnNamePattern) ) continue;
-                    Map<String,Object> sc = new LinkedHashMap<>();
+                    final Map<String,Object> sc = new LinkedHashMap<>();
+                    String columnName = column.toString();
+                    if( column instanceof JSONObject ) {
+                        JSONObject columnJson = (JSONObject) column;
+                        columnName = columnJson.getString("name");
+                        final JDBCType jdbctype = toJDBCType(columnJson.getString("type"));
+                        sc.put("DATA_TYPE", jdbctype.getVendorTypeNumber() );
+                        sc.put("TYPE_NAME", jdbctype.name() );
+                    } else {
+                        sc.put("DATA_TYPE", Types.OTHER );
+                        sc.put("TYPE_NAME", "UNKNOWN");
+                    }
+                    if( curColumnNamePattern!=null && !columnName.matches(curColumnNamePattern) ) continue;
                     sc.put("TABLE_CAT", (String)null);
                     sc.put("TABLE_SCHEM", schema);
                     sc.put("TABLE_NAME", table);
-                    sc.put("COLUMN_NAME", column.toString());
-                    sc.put("DATA_TYPE", 1111);
-                    sc.put("TYPE_NAME", "UNKNOWN");
+                    sc.put("COLUMN_NAME", columnName);
                     sc.put("COLUMN_SIZE", 0);
                     sc.put("BUFFER_LENGTH", 0);
                     sc.put("DECIMAL_DIGITS", 0);
@@ -253,31 +265,31 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
                 }
             }
         }
-        final Map<String,String> rstypes = new LinkedHashMap<>();
-        rstypes.put("TABLE_CAT", "string");
-        rstypes.put("TABLE_SCHEM", "string");
-        rstypes.put("TABLE_NAME", "string");
-        rstypes.put("COLUMN_NAME", "string");
-        rstypes.put("DATA_TYPE", "int");
-        rstypes.put("TYPE_NAME", "string");
-        rstypes.put("COLUMN_SIZE", "int");
-        rstypes.put("BUFFER_LENGTH", "int");
-        rstypes.put("DECIMAL_DIGITS", "int");
-        rstypes.put("NUM_PREC_RADIX", "int");
-        rstypes.put("NULLABLE", "int");
-        rstypes.put("REMARKS", "string");
-        rstypes.put("COLUMN_DEF", "string");
-        rstypes.put("SQL_DATA_TYPE", "int");
-        rstypes.put("SQL_DATETIME_SUB", "int");
-        rstypes.put("CHAR_OCTET_LENGTH", "int");
-        rstypes.put("ORDINAL_POSITION", "int");
-        rstypes.put("IS_NULLABLE", "string");
-        rstypes.put("SCOPE_CATALOG", "string");
-        rstypes.put("SCOPE_SCHEMA", "string");
-        rstypes.put("SCOPE_TABLE", "string");
-        rstypes.put("SOURCE_DATA_TYPE", "int");
-        rstypes.put("IS_AUTOINCREMENT", "string");
-        rstypes.put("IS_GENERATEDCOLUMN", "string");
+        final Map<String,JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("TABLE_CAT", JDBCType.VARCHAR);
+        rstypes.put("TABLE_SCHEM", JDBCType.VARCHAR);
+        rstypes.put("TABLE_NAME", JDBCType.VARCHAR);
+        rstypes.put("COLUMN_NAME", JDBCType.VARCHAR);
+        rstypes.put("DATA_TYPE", JDBCType.INTEGER);
+        rstypes.put("TYPE_NAME", JDBCType.VARCHAR);
+        rstypes.put("COLUMN_SIZE", JDBCType.INTEGER);
+        rstypes.put("BUFFER_LENGTH", JDBCType.INTEGER);
+        rstypes.put("DECIMAL_DIGITS", JDBCType.INTEGER);
+        rstypes.put("NUM_PREC_RADIX", JDBCType.INTEGER);
+        rstypes.put("NULLABLE", JDBCType.INTEGER);
+        rstypes.put("REMARKS", JDBCType.VARCHAR);
+        rstypes.put("COLUMN_DEF", JDBCType.VARCHAR);
+        rstypes.put("SQL_DATA_TYPE", JDBCType.INTEGER);
+        rstypes.put("SQL_DATETIME_SUB", JDBCType.INTEGER);
+        rstypes.put("CHAR_OCTET_LENGTH", JDBCType.INTEGER);
+        rstypes.put("ORDINAL_POSITION", JDBCType.INTEGER);
+        rstypes.put("IS_NULLABLE", JDBCType.VARCHAR);
+        rstypes.put("SCOPE_CATALOG", JDBCType.VARCHAR);
+        rstypes.put("SCOPE_SCHEMA", JDBCType.VARCHAR);
+        rstypes.put("SCOPE_TABLE", JDBCType.VARCHAR);
+        rstypes.put("SOURCE_DATA_TYPE", JDBCType.INTEGER);
+        rstypes.put("IS_AUTOINCREMENT", JDBCType.VARCHAR);
+        rstypes.put("IS_GENERATEDCOLUMN", JDBCType.VARCHAR);
         return new MapResultSet(this.isTraced(), rows, rstypes);
     }
 
@@ -296,7 +308,7 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
         try {
             return Integer.parseInt( redashServerVersion.split("\\.")[0] );
         } catch(NumberFormatException e) {
-            return 0;
+            return 1;
         }
     }
 

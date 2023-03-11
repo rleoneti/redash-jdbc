@@ -1,6 +1,6 @@
 <!--
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -17,7 +17,7 @@
 
   <groupId>org.leoneti</groupId>
   <artifactId>redash-jdbc</artifactId>
-  <version>1.0.0</version>
+  <version>1.0.1</version>
   <packaging>jar</packaging>
 
   <name>Redash JDBC</name>
@@ -103,5 +103,44 @@
     </plugins>
     
   </build>
+
+    <profiles>
+        <profile>
+            <!-- We only sign the jars when the keystore has been provided in the environment -->
+            <id>sign-jars</id>
+            <activation>
+                <file>
+                    <exists>${env.SIGN_KEYSTORE}</exists>
+                </file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jarsigner-plugin</artifactId>
+                        <version>1.4</version>
+                        <configuration>
+                            <!-- Note: to sign with a .pfx the alias can be seen with keytool -list -v -storetype pkcs12 -keystore code_sign.pfx -->
+                            <keystore>${env.SIGN_KEYSTORE}</keystore>
+                            <storepass>${env.SIGN_STOREPASS}</storepass>
+                            <alias>${env.SIGN_ALIAS}</alias>
+                            <keypass>${env.SIGN_KEYPASS}</keypass>
+                            <storetype>${env.SIGN_STORETYPE}</storetype>
+                            <tsa>${env.SIGN_TSA}</tsa>
+                            <verbose>true</verbose>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>sign</id>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

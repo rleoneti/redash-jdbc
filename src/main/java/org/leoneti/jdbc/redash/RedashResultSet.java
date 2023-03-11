@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -13,11 +13,13 @@
 package org.leoneti.jdbc.redash;
 
 import java.math.BigDecimal;
+import java.sql.Date;
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Time;
 import java.sql.Timestamp;
-import java.sql.Types;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Iterator;
@@ -29,46 +31,50 @@ import java.util.logging.Logger;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.leoneti.jdbc.GenericResultSet;
+import static java.sql.JDBCType.*;
+import static org.leoneti.Utils.toJDBCType;
 
 public class RedashResultSet extends GenericResultSet {
     
     private JSONArray rows;
     private Iterator<Object> it;
-    private Map<String, String> maptypes;
+    private Map<String, JDBCType> maptypes;
     private RedashResultSetMetaData metadata;
+    private String dsType;
     
     private JSONObject currentObj;
     private Object lastObj;
     private int rowNumber = 0;
     
-    public static SimpleDateFormat datetime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS");
-    public static SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd");
-    public static SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss.SSS");
+    public static SimpleDateFormat datetime_micro = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS"); //23
+    public static SimpleDateFormat datetime = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss"); //19
+    public static SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd"); //10
+    public static SimpleDateFormat time_micro = new SimpleDateFormat("HH:mm:ss.SSS"); //12
+    public static SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss"); //8
 
-    public RedashResultSet(boolean trace, JSONArray cols, JSONArray rows) {
+    public RedashResultSet(boolean trace, JSONArray cols, JSONArray rows, String dsType) {
         super(trace, RedashResultSet.class);
+        this.dsType = dsType;
         this.rows = rows;
-        maptypes = new LinkedHashMap<String, String>(10);
-        JSONObject firstObj = rows.isEmpty() ? null : rows.getJSONObject(0);
+        maptypes = new LinkedHashMap<String, JDBCType>(10);
+        //final JSONObject firstObj = rows.isEmpty() ? null : rows.getJSONObject(0);
         for(Object obj : cols ) {
-            JSONObject coltype = (JSONObject) obj;
+            final JSONObject coltype = (JSONObject) obj;
+            final String colName = coltype.getString("name");
             if( !coltype.isNull("type") ) {
-                maptypes.put( coltype.getString("name"), coltype.getString("type") );
-            } else if( firstObj == null) {
-                maptypes.put( coltype.getString("name"), null );
-            } else {
-                Object val = firstObj.get( coltype.getString("name") );
-                if( val instanceof Long || val instanceof Integer ) {
-                    maptypes.put( coltype.getString("name"), "int" );
-                } else if( val instanceof Float || val instanceof Double || val instanceof BigDecimal || val instanceof Number ) {
-                    maptypes.put( coltype.getString("name"), "double" );
-                } else if( val instanceof Boolean ) {
-                    maptypes.put( coltype.getString("name"), "bool" );
-                } else if( val instanceof java.util.Date || val instanceof java.sql.Date || val instanceof Timestamp ) {
-                    maptypes.put( coltype.getString("name"), "datetime" );
+                final String type = coltype.getString("type");
+                /**
+                 * BUG: Redash with decimal values on Oracle
+                 */
+                if( !getDsType().equalsIgnoreCase("oracle") || (!(type.equalsIgnoreCase("float") || type.equalsIgnoreCase("integer")) && getDsType().equalsIgnoreCase("oracle")) ) {
+                    maptypes.put( colName, toJDBCType(type) );
                 } else {
-                    maptypes.put( coltype.getString("name"), null );
+                    maptypes.put( colName, DECIMAL );
                 }
+            //} else if( firstObj == null) {
+            //    maptypes.put( colName, null );
+            } else {
+                maptypes.put( colName, JAVA_OBJECT );
             }
         }
         if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, maptypes.toString() );
@@ -81,10 +87,12 @@ public class RedashResultSet extends GenericResultSet {
         //}
     }
 
-    public RedashResultSet(boolean trace, JSONObject jo) {
-    	this(trace, jo.getJSONObject("query_result").getJSONObject("data").getJSONArray("columns") ,  jo.getJSONObject("query_result").getJSONObject("data").getJSONArray("rows") );
-    }
+    public String getDsType() { return dsType; }
 
+    public RedashResultSet(boolean trace, JSONObject jo, String dsType) {
+    	this(trace, jo.getJSONObject("query_result").getJSONObject("data").getJSONArray("columns") ,  jo.getJSONObject("query_result").getJSONObject("data").getJSONArray("rows"), dsType );
+    }
+    
     @Override
     public boolean next() throws SQLException {
         if( it.hasNext() ) {
@@ -107,29 +115,87 @@ public class RedashResultSet extends GenericResultSet {
 
     @Override
     public Object getObject(String columnLabel) throws SQLException {
-        readObject( columnLabel );
-        if( this.lastObj != null && this.metadata.getColumnType(columnLabel) == Types.TIMESTAMP ) {
-            try {
-                this.lastObj = new Timestamp( datetime.parse( this.lastObj.toString() ).getTime() );
-            } catch (ParseException e) {
-                throw new SQLException(e);
-            }
+        switch( maptypes.get(columnLabel) ) {
+            case TIME_WITH_TIMEZONE:
+            case TIME: return getTime(columnLabel);
+            case DATE: return getDate(columnLabel);
+            case TIMESTAMP_WITH_TIMEZONE:
+            case TIMESTAMP: return getTimestamp(columnLabel);
+            case REAL:
+            case DECIMAL:
+            case NUMERIC: return getBigDecimal(columnLabel);
+            case DOUBLE: return getDouble(columnLabel);
+            case FLOAT: return getFloat(columnLabel);
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER: return getInt(columnLabel);
+            case BIGINT: return getLong(columnLabel);
+            case BOOLEAN: return getBoolean(columnLabel);
+            case JAVA_OBJECT: return getJavaObject(columnLabel);
+            //case ARRAY: return getArray(columnLabel);
+            default:
+                return getString(columnLabel);
         }
-        return this.lastObj;
     }
 
     @Override
     public Object getObject(int columnIndex) throws SQLException {
         return getObject( metadata.getColumnName(columnIndex) );
     }
+    
+    private Object getJavaObject(String columnLabel) throws SQLException {
+        readObject( columnLabel );
+        if( wasNull() ) return null;
+        final String strObj = this.lastObj.toString().trim();
+        final int len = strObj.length();
+        if( len == 23 && strObj.matches("\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d\\:\\d\\d\\:\\d\\d\\.\\d\\d\\d") ) {
+            try {
+                return new Timestamp( datetime_micro.parse( strObj ).getTime() ); //yyyy-MM-dd'T'HH:mm:ss.SSS
+            } catch (ParseException e) {}
+        }        
+        if( len == 19 && strObj.matches("\\d\\d\\d\\d-\\d\\d-\\d\\dT\\d\\d\\:\\d\\d\\:\\d\\d") ) {
+            try {
+                return new Timestamp( datetime.parse( strObj ).getTime() ); //yyyy-MM-dd'T'HH:mm:ss
+            } catch (ParseException e) {}
+        }        
+        if( len == 10 && strObj.matches("\\d\\d\\d\\d-\\d\\d-\\d\\d") ) {
+            try {
+                return new Date( date.parse( strObj ).getTime() ); //yyyy-MM-dd
+            } catch (ParseException e) {}
+        }        
+        if( len == 12 && strObj.matches("\\d\\d\\:\\d\\d\\:\\d\\d\\.\\d\\d\\d") ) {
+            try {
+                return new Time( time_micro.parse( strObj ).getTime() ); //HH:mm:ss.SSS
+            } catch (ParseException e) {}
+        }        
+        if( len == 8 && strObj.matches("\\d\\d\\:\\d\\d\\:\\d\\d") ) {
+            try {
+                return new Timestamp( time.parse( strObj ).getTime() ); //HH:mm:ss
+            } catch (ParseException e) {}
+        }
+        if( strObj.matches("[\\d\\.-]+") ) {
+            try {
+                return Long.parseLong( strObj );
+            } catch (NumberFormatException e) {
+                try {
+                    return Double.parseDouble( strObj );
+                } catch (NumberFormatException ee) {}
+            }
+        }
+        return this.lastObj;
+    }
 
     @Override
     public Timestamp getTimestamp(String columnLabel) throws SQLException {
         readObject( columnLabel );
         try {
-            return wasNull()?null:new Timestamp( datetime.parse( this.lastObj.toString() ).getTime() );
+            return wasNull()?null:new Timestamp( datetime_micro.parse( this.lastObj.toString() ).getTime() );
         } catch (ParseException e) {
-            throw new SQLException(e);
+            try {
+                return wasNull()?null:new Timestamp( datetime.parse( this.lastObj.toString() ).getTime() );
+            } catch (ParseException ee) {
+                throw new SQLException(e);
+            }
         }
     }
 
@@ -152,7 +218,7 @@ public class RedashResultSet extends GenericResultSet {
     @Override
     public int getInt(String columnLabel) throws SQLException {
         readObject( columnLabel );
-        return wasNull()?null:currentObj.getInt( columnLabel );
+        return wasNull() ? -1 : currentObj.getNumber( columnLabel ).intValue();
     }
 
     @Override
@@ -162,8 +228,8 @@ public class RedashResultSet extends GenericResultSet {
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
-            readObject( columnLabel );
-            return wasNull()?null:currentObj.getLong( columnLabel );
+        readObject(columnLabel);
+        return wasNull() ? -1L : currentObj.getNumber(columnLabel).longValue();
     }
 
     @Override
@@ -174,7 +240,7 @@ public class RedashResultSet extends GenericResultSet {
     @Override
     public float getFloat(String columnLabel) throws SQLException {
         readObject( columnLabel );
-        return wasNull()?null:currentObj.getFloat( columnLabel );
+        return wasNull() ? -1F : currentObj.getNumber( columnLabel ).floatValue();
     }
 
     @Override
@@ -185,7 +251,7 @@ public class RedashResultSet extends GenericResultSet {
     @Override
     public double getDouble(String columnLabel) throws SQLException {
         readObject( columnLabel );
-        return wasNull()?null:currentObj.getDouble( columnLabel );
+        return wasNull() ? -1D : currentObj.getNumber( columnLabel ).doubleValue();
     }
 
     @Override
@@ -196,7 +262,7 @@ public class RedashResultSet extends GenericResultSet {
     @Override
     public BigDecimal getBigDecimal(String columnLabel) throws SQLException {
         readObject( columnLabel );
-        return wasNull()?null:currentObj.getBigDecimal( columnLabel );
+        return wasNull() ? null : currentObj.getBigDecimal( columnLabel );
     }
 
     @Override
@@ -217,19 +283,47 @@ public class RedashResultSet extends GenericResultSet {
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
         readObject( columnLabel );
-        return wasNull()?null:currentObj.getBoolean( columnLabel );
+        return wasNull() ? false : currentObj.getBoolean( columnLabel );
     }
 
     @Override
     public boolean getBoolean(int columnIndex) throws SQLException {
         return getBoolean( metadata.getColumnName(columnIndex) );
     }
+    
+    @Override
+    public Date getDate(int columnIndex) throws SQLException {
+        return getDate( metadata.getColumnName(columnIndex) );
+    }
+    
+    @Override
+    public Date getDate(String columnLabel) throws SQLException {
+        final Timestamp dt = getTimestamp(columnLabel);
+        if( dt != null ) {
+            return new Date( dt.getTime() );
+        }
+        return null;
+    }
+    
+    @Override
+    public Time getTime(int columnIndex) throws SQLException {
+        return getTime( metadata.getColumnName(columnIndex) );
+    }
+    
+    @Override
+    public Time getTime(String columnLabel) throws SQLException {
+        final Timestamp dt = getTimestamp(columnLabel);
+        if( dt != null ) {
+            return new Time( dt.getTime() );
+        }
+        return null;
+    }
 
     @Override
     public boolean wasNull() throws SQLException {
         return this.lastObj == null || this.lastObj.equals(JSONObject.NULL);
     }
-
+    
     @Override
     public void close() throws SQLException {
     	this.rows = null;

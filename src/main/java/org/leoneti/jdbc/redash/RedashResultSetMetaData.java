@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -12,19 +12,21 @@
 *****************************************************************************************/
 package org.leoneti.jdbc.redash;
 
+import java.sql.JDBCType;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
 import java.util.Arrays;
 import java.util.Map;
 
 import org.leoneti.jdbc.GenericResultSetMetaData;
+import static java.sql.JDBCType.*;
+
+import java.sql.Array;
 
 public class RedashResultSetMetaData extends GenericResultSetMetaData {
 
-    private Map<String, String> maptypes;
+    private Map<String, JDBCType> maptypes;
 
-    public RedashResultSetMetaData(boolean trace, Map<String, String> maptypes) {
+    public RedashResultSetMetaData(boolean trace, Map<String, JDBCType> maptypes) {
         super(trace, RedashResultSetMetaData.class);
         this.maptypes = maptypes;
     }
@@ -36,15 +38,18 @@ public class RedashResultSetMetaData extends GenericResultSetMetaData {
 
     @Override
     public String getColumnName(int column) throws SQLException {
+        logMethod("getColumnName", column);
         return maptypes.keySet().toArray()[column - 1].toString();
     }
     
     public int findColumn(String columnLabel) throws SQLException {
+        logMethod("findColumn", columnLabel);
         return Arrays.binarySearch( maptypes.keySet().toArray(), columnLabel )+1;
     }
 
     @Override
     public String getColumnLabel(int column) throws SQLException {
+        logMethod_("getColumnLabel", true , column);
         return getColumnName(column);
     }
 
@@ -62,18 +67,10 @@ public class RedashResultSetMetaData extends GenericResultSetMetaData {
     }
     
     public int getColumnType(String colname) throws SQLException {
+        logMethod("getColumnType", colname);
         if( maptypes.get(colname) == null )
-            return Types.VARCHAR;
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return Types.TIMESTAMP;
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-        	|| maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return Types.BIGINT;
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return Types.DECIMAL;
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return Types.BOOLEAN;
-        return Types.VARCHAR;
+            return VARCHAR.ordinal();
+        return maptypes.get(colname).ordinal();
     }
     
     @Override
@@ -84,36 +81,40 @@ public class RedashResultSetMetaData extends GenericResultSetMetaData {
 
     @Override
     public String getColumnTypeName(int column) throws SQLException {
+        logMethod("getColumnTypeName", column);
         String colname = getColumnName(column);
-    	if( maptypes.get(colname) == null )
-            return "VARCHAR";
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return "TIMESTAMP";
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-        	|| maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return "BIGINT";
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return "DECIMAL";
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return "BOOLEAN";
-        return "VARCHAR";
+        if( maptypes.get(colname) == null )
+            return VARCHAR.name();
+        return maptypes.get(colname).name();
     }
 
     @Override
     public String getColumnClassName(int column) throws SQLException {
+        logMethod("getColumnClassName", column);
         String colname = getColumnName(column);
         if( maptypes.get(colname) == null )
             return String.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("datetime") || maptypes.get(colname).equalsIgnoreCase("timestamp") )
-            return Timestamp.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("integer") || maptypes.get(colname).equalsIgnoreCase("int")
-            	|| maptypes.get(colname).equalsIgnoreCase("long") || maptypes.get(colname).equalsIgnoreCase("smalint") )
-            return Long.class.getName();
-        if( maptypes.get(colname).equalsIgnoreCase("double") || maptypes.get(colname).equalsIgnoreCase("float"))
-            return Double.class.getName();;
-        if( maptypes.get(colname).equalsIgnoreCase("boolean") || maptypes.get(colname).equalsIgnoreCase("bool"))
-            return Boolean.class.getName();;
-        return String.class.getName();
+        switch( maptypes.get(colname) ) {
+            case TIME_WITH_TIMEZONE:
+            case TIME: return java.sql.Time.class.getName();
+            case DATE: return java.sql.Date.class.getName();
+            case TIMESTAMP_WITH_TIMEZONE:
+            case TIMESTAMP: return java.sql.Timestamp.class.getName();
+            case REAL:
+            case DECIMAL:
+            case NUMERIC: return Number.class.getName();
+            case DOUBLE: return Double.class.getName();
+            case FLOAT: return Float.class.getName();
+            case TINYINT:
+            case SMALLINT:
+            case INTEGER: return Integer.class.getName();
+            case BIGINT: return Long.class.getName();
+            case BOOLEAN: return Boolean.class.getName();
+            case JAVA_OBJECT: return Object.class.getName();
+            case ARRAY: return Array.class.getName();
+            default:
+                return String.class.getName();
+        }
     }
 
     @Override

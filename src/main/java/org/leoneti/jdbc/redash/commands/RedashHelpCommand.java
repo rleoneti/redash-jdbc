@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -17,6 +17,7 @@ import static org.leoneti.jdbc.redash.RedashResource.toCamelCase;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.JDBCType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,9 +40,9 @@ public class RedashHelpCommand {
             rows.add(sc);
         }
 
-        Map<String, String> rstypes = new LinkedHashMap<>();
-        rstypes.put("COMMAND", "string");
-        rstypes.put("DESCRIPTION", "string");
+        Map<String, JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("COMMAND", JDBCType.VARCHAR );
+        rstypes.put("DESCRIPTION", JDBCType.VARCHAR );
         return new MapResultSet(false, rows, rstypes);
     }
 

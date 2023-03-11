@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-01-15
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -15,6 +15,7 @@ package org.leoneti.jdbc.iterable;
 import static org.leoneti.jdbc.redash.RedashResultSet.datetime;
 
 import java.math.BigDecimal;
+import java.sql.JDBCType;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -35,7 +36,7 @@ public class MapResultSet extends GenericResultSet {
     private Map<String, Object> currentObj;
     private Object lastObj;
 
-    public MapResultSet(boolean trace, Iterable<Map<String, Object>> rows, Map<String, String> types) {
+    public MapResultSet(boolean trace, Iterable<Map<String, Object>> rows, Map<String, JDBCType> types) {
         super(trace, MapResultSet.class);
         this.rows = rows;
         this.it = this.rows.iterator();
@@ -124,9 +125,10 @@ public class MapResultSet extends GenericResultSet {
 
     @Override
     public int getInt(String columnLabel) throws SQLException {
-        int i = (int) currentObj.get(columnLabel);
-        this.lastObj = i;
-        return i;
+        Object obj = readObject(columnLabel);
+        if (obj == null)
+            return 0;
+        return (int) obj;
     }
 
     @Override
@@ -136,9 +138,10 @@ public class MapResultSet extends GenericResultSet {
 
     @Override
     public long getLong(String columnLabel) throws SQLException {
-        long i = (long) currentObj.get(columnLabel);
-        this.lastObj = i;
-        return i;
+        Object obj = readObject(columnLabel);
+        if (obj == null)
+            return 0L;
+        return (long) obj;
     }
 
     @Override
@@ -148,9 +151,10 @@ public class MapResultSet extends GenericResultSet {
 
     @Override
     public float getFloat(String columnLabel) throws SQLException {
-        float i = (float) currentObj.get(columnLabel);
-        this.lastObj = i;
-        return i;
+        Object obj = readObject(columnLabel);
+        if (obj == null)
+            return 0.0F;
+        return (float) obj;
     }
 
     @Override
@@ -160,9 +164,10 @@ public class MapResultSet extends GenericResultSet {
 
     @Override
     public double getDouble(String columnLabel) throws SQLException {
-        double i = (double) currentObj.get(columnLabel);
-        this.lastObj = i;
-        return i;
+        Object obj = readObject(columnLabel);
+        if (obj == null)
+            return 0.0D;
+        return (double) obj;
     }
 
     @Override
@@ -194,9 +199,10 @@ public class MapResultSet extends GenericResultSet {
 
     @Override
     public boolean getBoolean(String columnLabel) throws SQLException {
-        boolean i = (boolean) currentObj.get(columnLabel);
-        this.lastObj = i;
-        return i;
+        Object obj = readObject(columnLabel);
+        if (obj == null)
+            return false;
+        return (boolean) obj;
     }
 
     @Override

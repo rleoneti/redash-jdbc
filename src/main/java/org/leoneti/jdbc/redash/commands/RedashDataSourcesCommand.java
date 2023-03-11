@@ -12,6 +12,7 @@
 *****************************************************************************************/
 package org.leoneti.jdbc.redash.commands;
 
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class RedashDataSourcesCommand {
 	public RedashDataSourcesCommand(RedashConnection con) throws SQLException {
 		this.con = con;
 		final StringBuffer response = this.con.getRedashHttp().get( "/api/data_sources" );
+		//System.out.println( response );
 		this.rows = new JSONArray(response.toString());
 		if( rows.isEmpty() || rows.length() == 0 ) {
 		    throw new SQLException( "Empty /api/data_sources !!" );
@@ -66,15 +68,15 @@ public class RedashDataSourcesCommand {
             sc.put("view_only", jo.getBoolean("view_only"));
             rows.add( sc );
         }
-        Map<String,String> rstypes = new LinkedHashMap<>();
-        rstypes.put("id", "int");
-        rstypes.put("name", "string");
-        rstypes.put("type", "string");
-        rstypes.put("syntax", "string");
-        rstypes.put("paused", "int");
-        rstypes.put("pause_reason", "string");
-        rstypes.put("supports_auto_limit", "boolean");
-        rstypes.put("view_only", "boolean");
+        Map<String,JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("id", JDBCType.INTEGER);
+        rstypes.put("name", JDBCType.VARCHAR);
+        rstypes.put("type", JDBCType.VARCHAR);
+        rstypes.put("syntax", JDBCType.VARCHAR);
+        rstypes.put("paused", JDBCType.INTEGER);
+        rstypes.put("pause_reason", JDBCType.VARCHAR);
+        rstypes.put("supports_auto_limit", JDBCType.BOOLEAN);
+        rstypes.put("view_only", JDBCType.BOOLEAN);
         return new MapResultSet(con.isTraced(), rows, rstypes);
     }
 
@@ -97,4 +99,13 @@ public class RedashDataSourcesCommand {
         throw new SQLException(String.format(RedashResource.getString("dataSourceNotFount"), String.valueOf(id)) );
     }
 
+    public String getDataSourceType(int id) throws SQLException {
+        for(Object x : get() ) {
+            if( ((JSONObject)x).getInt("id") == id ) {
+                return ((JSONObject)x).getString("type");
+            }
+        }
+        throw new SQLException(String.format(RedashResource.getString("dataSourceNotFount"), String.valueOf(id)) );
+    }
+    
 }

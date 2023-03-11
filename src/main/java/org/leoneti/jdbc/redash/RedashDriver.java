@@ -17,14 +17,7 @@ import java.sql.Driver;
 import java.sql.DriverPropertyInfo;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Properties;
-import java.util.logging.FileHandler;
-import java.util.logging.Formatter;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 public class RedashDriver implements Driver {
@@ -75,41 +68,4 @@ public class RedashDriver implements Driver {
         return RedashDriver.log;
     }
 
-    static {
-        /**
-        final SimpleDateFormat fileformat = new SimpleDateFormat("M-d_HHmmss");
-        final Formatter logFormatter = new Formatter() {
-            @Override
-            public synchronized String format(LogRecord record) {
-                return String.format("%1$tF %1$tT %4$-7s [%2$s] %5$s %n",
-                        new Date(record.getMillis()),
-                        RedashDriver.class.getName(),
-                        record.getLoggerName(),
-                        record.getLevel().getName(),
-                        formatMessage(record));
-            }
-        };
-        final String fileSufix = fileformat.format(new Date());
-        
-        log.addHandler( new Handler() {
-            @Override
-            public synchronized void publish(LogRecord record) {
-                try {
-                    final FileHandler fh = new FileHandler(String.format("C:/temp/%s_%s.log", RedashDriver.class.getName(), fileSufix ),true);
-                    fh.setLevel( Level.INFO );
-                    fh.setFormatter(logFormatter);
-                    fh.publish(record);
-                    fh.close();
-                } catch(Exception e) {}
-            }
-            
-            @Override
-            public void flush() {}
-            
-            @Override
-            public void close() throws SecurityException {}
-        }  );
-        log.setUseParentHandlers(false);
-        /**/
-    }
 }

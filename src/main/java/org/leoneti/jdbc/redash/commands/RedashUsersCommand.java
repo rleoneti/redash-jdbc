@@ -12,6 +12,7 @@
 *****************************************************************************************/
 package org.leoneti.jdbc.redash.commands;
 
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public class RedashUsersCommand {
             sc.put("created_at", jo.getString("created_at"));
             // sc.put("created_at", new Timestamp(
             // datetime.parse(jo.getString("created_at")).getTime() ) );
-            sc.put("groups", jo.getJSONArray("groups").toString());
+            sc.put("groups", jo.getJSONArray("groups") );
             sc.put("is_disabled", jo.getBoolean("is_disabled"));
             sc.put("disabled_at", jo.isNull("disabled_at") ? null : jo.getString("disabled_at"));
             // sc.put("disabled_at", new Timestamp(
@@ -67,15 +68,15 @@ public class RedashUsersCommand {
             sc.put("auth_type", jo.getString("auth_type"));
             rows.add(sc);
         }
-        Map<String, String> rstypes = new LinkedHashMap<>();
-        rstypes.put("id", "int");
-        rstypes.put("name", "string");
-        rstypes.put("email", "string");
-        rstypes.put("created_at", "timestamp");
-        rstypes.put("groups", "string");
-        rstypes.put("is_disabled", "boolean");
-        rstypes.put("disabled_at", "timestamp");
-        rstypes.put("auth_type", "string");
+        Map<String, JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("id", JDBCType.INTEGER);
+        rstypes.put("name", JDBCType.VARCHAR);
+        rstypes.put("email", JDBCType.VARCHAR);
+        rstypes.put("created_at", JDBCType.TIMESTAMP);
+        rstypes.put("groups", JDBCType.JAVA_OBJECT);
+        rstypes.put("is_disabled", JDBCType.BOOLEAN);
+        rstypes.put("disabled_at", JDBCType.TIMESTAMP);
+        rstypes.put("auth_type", JDBCType.VARCHAR);
         return new MapResultSet(con.isTraced(), rows, rstypes);
     }
 

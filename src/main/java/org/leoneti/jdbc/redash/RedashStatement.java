@@ -78,26 +78,26 @@ public class RedashStatement extends GenericStatement {
         		    }
         		}
         	}
-            return new RedashResultSet(isTraced(), jo);
+            return new RedashResultSet(isTraced(), jo, con.getDsType());
         }
     }
     
     @Override
     public ResultSet executeQuery() throws SQLException {
-        logMethod("executeQuery");
+        logMethod_("executeQuery", true );
         return executeQuery(this.sql);
     }
 
     @Override
     public boolean execute() throws SQLException {
-        logMethod("execute");
+        logMethod_("execute", true );
         this.rs = executeQuery();
         return this.rs != null;
     }
 
     @Override
     public boolean execute(String sql) throws SQLException {
-        logMethod("execute", sql);
+        logMethod_("execute", true , sql);
         this.sql = sql;
         return execute();
     }

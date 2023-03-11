@@ -51,6 +51,7 @@ public class RedashExecuteQueryCommand implements Cloneable {
     public JSONObject results(int queryId) throws SQLException {
         final StringBuffer response = getRedashHttp().get("/api/queries/%d/results", getQueryId());
         final JSONObject jo = new JSONObject(response.toString());
+        System.out.println( jo.toString(2) );
         return jo;
     }
 

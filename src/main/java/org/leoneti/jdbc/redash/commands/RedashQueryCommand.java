@@ -12,6 +12,7 @@
 *****************************************************************************************/
 package org.leoneti.jdbc.redash.commands;
 
+import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ public class RedashQueryCommand implements Cloneable {
     private int queryId = -1;
     private long queryVersion = 0;
     private Object latest_query_data_id;
-    private boolean cancelExecution = false;
+    //private boolean cancelExecution = false;
 
     public RedashQueryCommand(RedashConnection con) {
         this.con = con;
@@ -113,16 +114,16 @@ public class RedashQueryCommand implements Cloneable {
             sc.put("data_source", con.getDataSourcesCommand().getDataSourceName(data_source_id));
             rsrows.add( sc );
         }
-        Map<String,String> rstypes = new LinkedHashMap<>();
-        rstypes.put("id", "int");
-        rstypes.put("query_name", "string");
-        rstypes.put("query", "string");
-        rstypes.put("userId", "int");
-        rstypes.put("userName", "string");
-        rstypes.put("latest_query_data_id", "int");
-        rstypes.put("runtime", "double");
-        rstypes.put("updated_at", "timestamp");
-        rstypes.put("data_source", "string");
+        Map<String,JDBCType> rstypes = new LinkedHashMap<>();
+        rstypes.put("id", JDBCType.INTEGER);
+        rstypes.put("query_name", JDBCType.VARCHAR);
+        rstypes.put("query", JDBCType.VARCHAR);
+        rstypes.put("userId", JDBCType.INTEGER);
+        rstypes.put("userName", JDBCType.VARCHAR);
+        rstypes.put("latest_query_data_id", JDBCType.INTEGER);
+        rstypes.put("runtime", JDBCType.DOUBLE);
+        rstypes.put("updated_at", JDBCType.TIMESTAMP);
+        rstypes.put("data_source", JDBCType.VARCHAR);
         return new MapResultSet(isTraced(), rsrows, rstypes);
     }
     

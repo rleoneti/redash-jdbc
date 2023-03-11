@@ -29,6 +29,7 @@ public class RedashConnection extends GenericConnection {
     private String url;
     private String ds;
     private int dsId;
+    private String dsType;
     private Properties info;
     private RedashHttp rh;
     private RedashQueryCommand queryCommand;
@@ -40,6 +41,8 @@ public class RedashConnection extends GenericConnection {
     public int getDsId() { return dsId; }
     
     public String getDs() { return ds; }
+    
+    public String getDsType() { return dsType; }
     
     public RedashQueryCommand getQueryCommand() { return queryCommand; }
     
@@ -74,11 +77,9 @@ public class RedashConnection extends GenericConnection {
 
         this.dsCommand = new RedashDataSourcesCommand(this);
         if( ds != null && !ds.isEmpty() ) {
-            this.ds = ds;
-            this.dsId = dsCommand.getDataSourceId(ds);
+            setCatalog(ds);
         } else {
-            this.ds = this.dsCommand.get().getJSONObject(0).getString("name");
-            this.dsId = this.dsCommand.get().getJSONObject(0).getInt("id");
+            setCatalog( this.dsCommand.get().getJSONObject(0).getString("name") );
         }
         
         this.metadata = new RedashDatabaseMetaData(this);
@@ -89,19 +90,26 @@ public class RedashConnection extends GenericConnection {
 
     @Override
     public Statement createStatement() throws SQLException {
-        logMethod("createStatement");
+        logMethod_("createStatement", true );
         return new RedashStatement(this);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql) throws SQLException {
-        logMethod("prepareStatement", sql);
+        logMethod_("prepareStatement", true, sql);
         return new RedashStatement(this, sql);
     }
 
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
         logMethodWithReturn("getMetaData", this.metadata);
+        if( this.metadata == null ) {
+            this.metadata = new RedashDatabaseMetaData(this);
+            if( this.queryCommand == null ) {
+                this.queryCommand = new RedashQueryCommand(this);
+                this.queryCommand.identifyOrCreateQueryId();
+            }
+        }
         return this.metadata;
     }
 
@@ -137,6 +145,7 @@ public class RedashConnection extends GenericConnection {
         logMethod("setCatalog", catalog);
         this.ds = catalog;
         this.dsId = getDataSourcesCommand().getDataSourceId(catalog);
+        this.dsType = getDataSourcesCommand().getDataSourceType(dsId);
     }
 
     @Override
@@ -153,19 +162,19 @@ public class RedashConnection extends GenericConnection {
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency) throws SQLException {
-        logMethod("createStatement", resultSetType, resultSetConcurrency);
+        logMethod_("createStatement", true, resultSetType, resultSetConcurrency);
         return createStatement();
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-        logMethod("prepareStatement", sql, resultSetType, resultSetConcurrency);
+        logMethod_("prepareStatement", true, sql, resultSetType, resultSetConcurrency);
         return prepareStatement(sql);
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency) throws SQLException {
-        logMethod("prepareCall", sql, resultSetType, resultSetConcurrency);
+        logMethod_("prepareCall", true, sql, resultSetType, resultSetConcurrency);
         return prepareCall(sql);
     }
 
@@ -181,37 +190,37 @@ public class RedashConnection extends GenericConnection {
 
     @Override
     public Statement createStatement(int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        logMethod("createStatement", resultSetType, resultSetConcurrency, resultSetHoldability);
+        logMethod_("createStatement", true, resultSetType, resultSetConcurrency, resultSetHoldability);
         return createStatement();
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        logMethod("prepareStatement", sql, resultSetType, resultSetConcurrency, resultSetHoldability);
+        logMethod_("prepareStatement", true, sql, resultSetType, resultSetConcurrency, resultSetHoldability);
         return prepareStatement(sql);
     }
 
     @Override
     public CallableStatement prepareCall(String sql, int resultSetType, int resultSetConcurrency, int resultSetHoldability) throws SQLException {
-        logMethod("prepareCall", sql, resultSetType, resultSetConcurrency, resultSetHoldability);
+        logMethod_("prepareCall", true, sql, resultSetType, resultSetConcurrency, resultSetHoldability);
         return prepareCall(sql);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int autoGeneratedKeys) throws SQLException {
-        logMethod("prepareStatement", sql, autoGeneratedKeys);
+        logMethod_("prepareStatement", true, sql, autoGeneratedKeys);
         return prepareStatement(sql);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, int[] columnIndexes) throws SQLException {
-        logMethod("prepareStatement", sql, columnIndexes);
+        logMethod_("prepareStatement", true, sql, columnIndexes);
         return prepareStatement(sql);
     }
 
     @Override
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
-        logMethod("prepareStatement", sql, columnNames);
+        logMethod_("prepareStatement", true, sql, columnNames);
         return prepareStatement(sql);
     }
 
