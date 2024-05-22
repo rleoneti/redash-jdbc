@@ -106,9 +106,12 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
                     response = con.getRedashHttp().get( String.format("/api/jobs/%s", jobId) );
                     jo = new JSONObject(response.toString());
                     //System.out.println( jo.toString(2) );
-                    if( jo.getJSONObject("job").getInt("status") == 3 ) break;
-                    if( jo.getJSONObject("job").getInt("status") == 4 ) {
-                        throw new RedashException( jo.getJSONObject("job") );
+                    //if (jo.getJSONObject("job").getInt("status") == 3)
+                    if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") )
+                        break;
+                    //if (jo.getJSONObject("job").getInt("status") == 4) {
+                    if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
+                        throw new RedashException(jo.getJSONObject("job"));
                     }
                     c++;
                 }

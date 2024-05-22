@@ -49,14 +49,14 @@ public class RedashExecuteQueryCommand implements Cloneable {
     }
 
     public JSONObject results(int queryId) throws SQLException {
-        final StringBuffer response = getRedashHttp().get("/api/queries/%d/results", getQueryId());
+        final StringBuffer response = getRedashHttp().get("/api/queries/%d/results", queryId);
         final JSONObject jo = new JSONObject(response.toString());
-        System.out.println( jo.toString(2) );
+        //System.out.println( jo.toString(2) );
         return jo;
     }
 
     public JSONObject resultsByQueryDataId(int latest_query_data_id) throws SQLException {
-        final StringBuffer response = getRedashHttp().get("/api/query_results/%d", getQueryId());
+        final StringBuffer response = getRedashHttp().get("/api/query_results/%d", latest_query_data_id);
         final JSONObject jo = new JSONObject(response.toString());
         return jo;
     }
@@ -74,16 +74,18 @@ public class RedashExecuteQueryCommand implements Cloneable {
         final JSONObject postData = new JSONObject();
         postData.put("id", getQueryId());
         postData.put("parameters", new JSONObject());
-        postData.put("apply_auto_limit", false);
+        postData.put("apply_auto_limit", true);
         postData.put("max_age", 0);
         if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, postData.toString());
         StringBuffer response = getRedashHttp().post("/api/queries/%d/results", postData.toString(), getQueryId());
+        //System.out.println( response.toString());
         jo = new JSONObject(response.toString());
-        if (jo.getJSONObject("job").getInt("status") == 4) {
+        if ( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
             throw new SQLException(jo.getJSONObject("job").getString("error"));
         }
         String jobId = jo.getJSONObject("job").getString("id");
         int c = 0;
+        int result_id = 0;
         while (true) {
             try {
                 Thread.sleep((c < 5 ? 1000 : (c < 10 ? 2000 : (c < 15 ? 3000 : 4000))));
@@ -98,9 +100,13 @@ public class RedashExecuteQueryCommand implements Cloneable {
             if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, "RESPONSE: " + response);
             jo = new JSONObject(response.toString());
             if( jo.has("job") ) {
-                if (jo.getJSONObject("job").getInt("status") == 3)
+                //if (jo.getJSONObject("job").getInt("status") == 3)
+                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") ) {
+                    result_id = jo.getJSONObject("job").getInt("result_id");
                     break;
-                if (jo.getJSONObject("job").getInt("status") == 4) {
+                }
+                //if (jo.getJSONObject("job").getInt("status") == 4) {
+                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
                     throw new RedashException(jo.getJSONObject("job"));
                 }
             } else {
@@ -109,7 +115,8 @@ public class RedashExecuteQueryCommand implements Cloneable {
             c++;
         }
         //this.latest_query_data_id = jo.getJSONObject("job").get("query_result_id");
-        return results(getQueryId());
+        //return results(getQueryId());
+        return resultsByQueryDataId(result_id);
     }
 
 }

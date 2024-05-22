@@ -98,7 +98,8 @@ public class RedashHttp extends TraceLog {
                 response.append(inputLine);
             }
             in.close();
-            //System.out.println( response );
+            //if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, response.toString());
+            //System.out.println( response.toString() );
             if( responseCode == HttpURLConnection.HTTP_OK )
                 return response;
             if( responseCode == HttpURLConnection.HTTP_MOVED_PERM )
