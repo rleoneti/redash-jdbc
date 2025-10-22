@@ -13,25 +13,29 @@
 package org.leoneti.jdbc.redash.commands;
 
 public enum RedashCommands {
-	
+
     HELP,
-	USERS, USER,
-	MYQUERIES, MY_QUERIES, QUERIES, ALL_QUERIES, 
-	//ADMIN_QUERIES,
-	SHOW_QUERY,
+    USERS, USER,
+    MYQUERIES, MY_QUERIES, QUERIES, ALL_QUERIES, 
+    //ADMIN_QUERIES,
+    SHOW_QUERY,
     DATA_SOURCES,
-	;
-	
-	public String regex() {
-		if( this == SHOW_QUERY )
-			return String.format( "(?i)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "\\s+(\\d+)" );
-		return String.format( "(?i)%s", this.name().replaceAll("_", "[\\\\s_]*") );
-	}
-	
-	public String strCmd() {
+    PAGINATOR
+    ;
+
+    public String regex() {
+        if( this == SHOW_QUERY )
+            return String.format( "(?i)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "\\s+(\\d+)" );
+        if( this == PAGINATOR )
+            return String.format( "(?ims)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "\\s+(\\w+)\\s+(.*)" );
+        return String.format( "(?i)%s", this.name().replaceAll("_", "[\\\\s_]*") );
+    }
+
+    public String strCmd() {
         if( this == SHOW_QUERY )
             return String.format( "%s%s", this.name().replaceAll("_", " ") , " <id>" );
+        if( this == PAGINATOR )
+            return String.format( "%s%s", this.name().replaceAll("_", " ") , " <column> <sql>" );
         return String.format( this.name().replaceAll("_", " ") );
-	}
-
+    }
 }

@@ -26,10 +26,12 @@ public class RedashExecuteQueryCommand implements Cloneable {
     private boolean cancelExecution = false;
     private RedashQueryCommand queryCommand;
     private RedashHttp rh;
+    private int last_result_id;
 
     public RedashExecuteQueryCommand(RedashConnection con) {
         this.queryCommand = con.getQueryCommand();
         this.rh = con.getRedashHttp().copy();
+        this.last_result_id = -1;
     }
 
     public int getQueryId() {
@@ -85,14 +87,13 @@ public class RedashExecuteQueryCommand implements Cloneable {
         }
         String jobId = jo.getJSONObject("job").getString("id");
         int c = 0;
-        int result_id = 0;
         while (true) {
             try {
                 Thread.sleep((c < 5 ? 1000 : (c < 10 ? 2000 : (c < 15 ? 3000 : 4000))));
             } catch (InterruptedException e) {
                 throw new SQLException(e);
             }
-            if (this.cancelExecution) {
+            if (this.cancelExecution || c > 100 ) {
                 this.cancelExecution = false;
                 return null;
             }
@@ -102,11 +103,15 @@ public class RedashExecuteQueryCommand implements Cloneable {
             if( jo.has("job") ) {
                 //if (jo.getJSONObject("job").getInt("status") == 3)
                 if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") ) {
-                    result_id = jo.getJSONObject("job").getInt("result_id");
+                    if( jo.getJSONObject("job").has("query_result_id") ) {
+                        this.last_result_id = jo.getJSONObject("job").getInt("query_result_id");
+                    } else {
+                        this.last_result_id = jo.getJSONObject("job").getInt("result_id");
+                    }
                     break;
                 }
                 //if (jo.getJSONObject("job").getInt("status") == 4) {
-                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
+                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("failed") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
                     throw new RedashException(jo.getJSONObject("job"));
                 }
             } else {
@@ -116,7 +121,11 @@ public class RedashExecuteQueryCommand implements Cloneable {
         }
         //this.latest_query_data_id = jo.getJSONObject("job").get("query_result_id");
         //return results(getQueryId());
-        return resultsByQueryDataId(result_id);
+        return resultsByQueryDataId(this.last_result_id);
+    }
+    
+    public int getLastResultId() {
+        return last_result_id;
     }
 
 }

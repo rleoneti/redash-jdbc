@@ -27,7 +27,9 @@ public @interface RedashConstants {
     public static final String DRIVER_PROPERTY_PAGE_SIZE = "pageSize";
 
     public static final String DRIVER_PROPERTY_TRACE = "trace";
-    
+
+    public static final String DRIVER_PROPERTY_RESULTSET_TRACE = "resultSet.trace";
+
     public static final String DEFAULT_SCHEMA = "DEFAULT";
     
     

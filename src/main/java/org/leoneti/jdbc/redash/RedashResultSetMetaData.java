@@ -67,10 +67,11 @@ public class RedashResultSetMetaData extends GenericResultSetMetaData {
     }
     
     public int getColumnType(String colname) throws SQLException {
-        logMethod("getColumnType", colname);
-        if( maptypes.get(colname) == null )
-            return VARCHAR.ordinal();
-        return maptypes.get(colname).ordinal();
+        final JDBCType type = maptypes.get(colname);
+        logMethodWithReturn("getColumnType", type, colname );
+        if( type == null )
+            return VARCHAR.getVendorTypeNumber();
+        return type.getVendorTypeNumber();
     }
     
     @Override

@@ -42,7 +42,7 @@ public abstract class TraceLog {
     }
 
     protected void logMethodWithReturn(String method, Object ret, Object... param) {
-        logMethodWithReturn_(method, false, param);
+        logMethodWithReturn_(method, false, ret, param);
     }
 
     protected void logMethodWithReturn_(String method, boolean ignoreNext, Object ret, Object... param) {

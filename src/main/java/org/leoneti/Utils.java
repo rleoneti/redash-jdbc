@@ -15,6 +15,7 @@ package org.leoneti;
 import java.math.BigDecimal;
 import java.sql.JDBCType;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import org.leoneti.jdbc.redash.RedashConnection;
 import org.leoneti.jdbc.redash.RedashConstants;
@@ -55,6 +56,7 @@ public class Utils {
                 case "TIMESTAMP WITH TIME ZONE": return JDBCType.TIMESTAMP_WITH_TIMEZONE;
                 case "DATETIME": return JDBCType.TIMESTAMP;
                 case "TEXT":
+                case "STRING":
                 case "CHARACTER VARYING": return JDBCType.VARCHAR;
                 case "JSON": return JDBCType.JAVA_OBJECT;
                 case "BYTEA": return JDBCType.BLOB;
@@ -63,6 +65,7 @@ public class Utils {
                     return JDBCType.valueOf( uType );
             }
         } catch(Exception e) {
+            log.log( Level.WARNING, String.format("toJDBCType(%s)", formatParameters(type)), e );
             return JDBCType.VARCHAR;
         }
     }

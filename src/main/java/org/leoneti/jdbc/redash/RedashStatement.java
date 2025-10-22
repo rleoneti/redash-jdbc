@@ -61,24 +61,34 @@ public class RedashStatement extends GenericStatement {
         } else if( sql.trim().matches( RedashCommands.HELP.regex() ) ) {
             return new RedashHelpCommand().get();
         } else  {
-        	final Matcher m = Pattern.compile( RedashCommands.SHOW_QUERY.regex() ).matcher( sql.trim() );
-        	JSONObject jo;
-        	if( !m.find() ) {
-		        this.sql = sql;
-		        jo = execQueryCommand.executeQuery(this.sql);
-        	} else {
-        		final int query_result_id = Integer.parseInt( m.group(1) );
-        		try {
-        		    jo = execQueryCommand.results(query_result_id);
-        		} catch(SQLException sqle) {
-        		    try {
-        		        jo = execQueryCommand.resultsByQueryDataId(query_result_id);
-        		    } catch(Exception e) {
-        		        throw sqle;
-        		    }
-        		}
-        	}
-            return new RedashResultSet(isTraced(), jo, con.getDsType());
+            RedashCommands commandType = null;
+            Matcher m = Pattern.compile( RedashCommands.SHOW_QUERY.regex() ).matcher( sql.trim() );
+            if( m.find() ) {
+                commandType = RedashCommands.SHOW_QUERY;
+            } else {
+                m = Pattern.compile( RedashCommands.PAGINATOR.regex() ).matcher( sql.trim() );
+                if( m.find() ) commandType = RedashCommands.PAGINATOR;
+            }
+            JSONObject jo;
+            if( commandType == RedashCommands.SHOW_QUERY ) {
+                final int query_result_id = Integer.parseInt( m.group(1) );
+                try {
+                    jo = execQueryCommand.results(query_result_id);
+                } catch(SQLException sqle) {
+                    try {
+                        jo = execQueryCommand.resultsByQueryDataId(query_result_id);
+                    } catch(Exception e) {
+                        throw sqle;
+                    }
+                }
+            } else if( commandType == RedashCommands.PAGINATOR ) {
+                return new RedashPaginatorResultSet(con, execQueryCommand, m.group(1), m.group(2), con.getDsType() );
+            } else {
+                this.sql = sql;
+                jo = execQueryCommand.executeQuery(this.sql);
+            }
+            RedashDriver.log.info( jo.toString() );
+            return new RedashResultSet(con.isResultSetTraced(), jo, con.getDsType());
         }
     }
     

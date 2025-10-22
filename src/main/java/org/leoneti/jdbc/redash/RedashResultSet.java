@@ -25,6 +25,7 @@ import java.text.SimpleDateFormat;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,7 +52,7 @@ public class RedashResultSet extends GenericResultSet {
     public static SimpleDateFormat date = new SimpleDateFormat("yyyy-MM-dd"); //10
     public static SimpleDateFormat time_micro = new SimpleDateFormat("HH:mm:ss.SSS"); //12
     public static SimpleDateFormat time = new SimpleDateFormat("HH:mm:ss"); //8
-
+    
     public RedashResultSet(boolean trace, JSONArray cols, JSONArray rows, String dsType) {
         super(trace, RedashResultSet.class);
         this.dsType = dsType;
@@ -94,17 +95,28 @@ public class RedashResultSet extends GenericResultSet {
     }
     
     @Override
+    public String getCursorName() throws SQLException {
+        return String.format("REDASH_%s", UUID.randomUUID().toString().toUpperCase());
+    }
+    
+    @Override
     public boolean next() throws SQLException {
         if( it.hasNext() ) {
+        	logMethodWithReturn("next", true);
             this.currentObj = (JSONObject) it.next();
             this.rowNumber++;
             return true;
         }
+        logMethodWithReturn("next", false);
         return false;
     }
 
     @Override
     public ResultSetMetaData getMetaData() throws SQLException {
+        return this.metadata;
+    }
+
+    public RedashResultSetMetaData getInternalMetaData() throws SQLException {
         return this.metadata;
     }
 
@@ -344,11 +356,13 @@ public class RedashResultSet extends GenericResultSet {
 
     @Override
     public boolean isFirst() throws SQLException {
+    	logMethodWithReturn("isFirst", this.rowNumber == 1);
         return this.rowNumber == 1;
     }
 
     @Override
     public boolean isLast() throws SQLException {
+    	logMethodWithReturn("isLast", this.rowNumber == this.rows.length()+1);
         return this.rowNumber == this.rows.length()+1;
     }
 
@@ -361,19 +375,20 @@ public class RedashResultSet extends GenericResultSet {
 
     @Override
     public boolean last() throws SQLException {
-        // TODO Auto-generated method stub
+        super.last();
         return false;
     }
 
     @Override
     public int getRow() throws SQLException {
-        // TODO Auto-generated method stub
+        super.getRow();
         return this.rowNumber;
     }
 
     @Override
     public int getFetchSize() throws SQLException {
-        return this.rows.length()+1;
+    	logMethodWithReturn("getFetchSize", this.rows.length());
+        return this.rows.length();
     }
 
     @Override

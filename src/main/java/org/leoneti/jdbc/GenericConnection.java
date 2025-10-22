@@ -35,6 +35,8 @@ import org.leoneti.TraceLog;
 
 public abstract class GenericConnection extends TraceLog implements Connection {
 
+    private boolean resultSetTrace = false;
+    
     public GenericConnection() {
         super();
     }
@@ -367,4 +369,11 @@ public abstract class GenericConnection extends TraceLog implements Connection {
         return 0;
     }
 
+    public void setResultSetTrace(boolean resultSetTrace) {
+        this.resultSetTrace = resultSetTrace;
+    }
+    
+    public boolean isResultSetTraced() {
+        return resultSetTrace;
+    }
 }

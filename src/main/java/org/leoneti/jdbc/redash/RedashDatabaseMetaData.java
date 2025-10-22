@@ -16,6 +16,7 @@ import java.sql.Connection;
 import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -115,8 +116,20 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
                     }
                     c++;
                 }
-                jo = new JSONObject(response.toString());
-                joSchema = jo.getJSONObject("job").getJSONArray("result");
+                //jo = new JSONObject(response.toString());
+                if( jo.getJSONObject("job").has("result") ) {
+                    joSchema = jo.getJSONObject("job").getJSONArray("result");
+                } else {
+                	String msg;
+                	try {
+                		msg = jo.getJSONObject("job").getJSONObject("result_id").getJSONObject("error").getJSONObject("message") +": " +
+                    		jo.getJSONObject("job").getJSONObject("result_id").getJSONObject("error").getJSONObject("details");
+                	} catch(Exception e) {
+                		msg = response.toString();
+                	}
+                    this.con.setWarning( new SQLWarning( msg ) );
+                    joSchema = new JSONArray();
+                }
             } else if( jo.has("schema") ) {
                 joSchema = jo.getJSONArray("schema");
             } else {
@@ -385,4 +398,9 @@ public class RedashDatabaseMetaData extends GenericDatabaseMetaData {
         return ".";
     }
 
+    @Override
+    public String toString() {
+    	// TODO Auto-generated method stub
+    	return "Vesion:" + this.redashServerVersion + "\tuserId:" + this.userId + "\tuserName:" + this.userName + "\tuserEmail:" + this.userEmail + "\tinfo:" + info.toString();
+    }
 }

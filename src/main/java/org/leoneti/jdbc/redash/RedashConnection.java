@@ -16,6 +16,7 @@ import java.sql.CallableStatement;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.SQLWarning;
 import java.sql.Statement;
 import java.util.Map;
 import java.util.Properties;
@@ -35,6 +36,7 @@ public class RedashConnection extends GenericConnection {
     private RedashQueryCommand queryCommand;
     private RedashDataSourcesCommand dsCommand;
     private RedashDatabaseMetaData metadata;
+    private SQLWarning warning = null;
     
     public RedashHttp getRedashHttp() { return rh; }
     
@@ -68,7 +70,11 @@ public class RedashConnection extends GenericConnection {
     protected RedashConnection(String url, String ds, Properties info) throws SQLException {
         super( info.containsKey(RedashConstants.DRIVER_PROPERTY_TRACE) && Boolean.valueOf( info.getProperty(RedashConstants.DRIVER_PROPERTY_TRACE, "false") ), RedashConnection.class  );
         logMethod("RedashConnection", url,ds);
-
+        
+        if( info.containsKey(RedashConstants.DRIVER_PROPERTY_RESULTSET_TRACE) ) {
+            this.setResultSetTrace( Boolean.valueOf( info.getProperty(RedashConstants.DRIVER_PROPERTY_RESULTSET_TRACE, "false") ) );
+        }
+        
         this.info = info;
         this.url = url;
         this.rh = new RedashHttp(isTraced(), url, getToken(), isSSL());
@@ -222,6 +228,22 @@ public class RedashConnection extends GenericConnection {
     public PreparedStatement prepareStatement(String sql, String[] columnNames) throws SQLException {
         logMethod_("prepareStatement", true, sql, columnNames);
         return prepareStatement(sql);
+    }
+
+    protected void setWarning(SQLWarning warning) {
+        this.warning = warning;
+    }
+
+    @Override
+    public SQLWarning getWarnings() throws SQLException {
+        logMethodWithReturn("getWarnings", warning);
+        return this.warning;
+    }
+
+    @Override
+    public void clearWarnings() throws SQLException {
+        logMethod("clearWarnings");
+        this.warning = null;
     }
 
 }
