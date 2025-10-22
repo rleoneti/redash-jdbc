@@ -17,7 +17,7 @@
 
   <groupId>org.leoneti</groupId>
   <artifactId>redash-jdbc</artifactId>
-  <version>1.0.2</version>
+  <version>1.1.0</version>
   <packaging>jar</packaging>
 
   <name>Redash JDBC</name>
@@ -93,7 +93,7 @@
               <descriptorRefs>
                 <descriptorRef>jar-with-dependencies</descriptorRef>
               </descriptorRefs>
-              <finalName>${project.artifactId}-FULL-${project.version}-${maven.build.timestamp}</finalName>
+              <finalName>${project.artifactId}-FULL-${project.version}</finalName>
               <appendAssemblyId>false</appendAssemblyId>
             </configuration>
           </execution>
