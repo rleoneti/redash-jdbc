@@ -84,7 +84,7 @@ public class RedashStatement extends GenericStatement {
             } else if( commandType == RedashCommands.PAGINATOR ) {
                 return new RedashPaginatorResultSet(con, execQueryCommand, m.group(1), m.group(2), con.getDsType() );
             } else {
-                this.sql = sql;
+                this.sql = sql.trim();
                 jo = execQueryCommand.executeQuery(this.sql);
             }
             RedashDriver.log.info( jo.toString() );

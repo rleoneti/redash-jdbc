@@ -1,5 +1,5 @@
 /*****************************************************************************************
-* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2023-03-05
+* Copyright (C) 2023-2023  Ricardo Leoneti                           Date: 2025-10-22
 *
 * All rights reserved. This program and the accompanying materials
 * are made available under the terms of the Eclipse Public License v2.0
@@ -7,14 +7,13 @@
 * https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.html
 *
 * Contributors:
-*     Ricardo Leoneti <ricardo.leoneti@gmail.com>    - initial API and implementation
+*     Ricardo Leoneti <ricardo.leoneti@gmail.com>    - paginator implementation
 * 
 *****************************************************************************************/
 package org.leoneti.jdbc.redash;
 
 import java.math.BigDecimal;
 import java.sql.Date;
-import java.sql.JDBCType;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -33,16 +32,11 @@ public class RedashPaginatorResultSet extends GenericResultSet {
     
     private RedashConnection con;
     
-    private static final int PAGESIZE = 10000;
-    
     private RedashExecuteQueryCommand execQueryCommand;
     private String column;
-    private JDBCType columnType;
     private String sql;
     private List<Object> result_id_list = new ArrayList<Object>(10);
-    //private Map<String, String> orderedMap = new LinkedHashMap<>();
     private int page=0;
-    //private JSONObject currentJo;
     private RedashResultSet currentResultSet;
     private String dsType;
     private JSONArray rows;
@@ -54,10 +48,9 @@ public class RedashPaginatorResultSet extends GenericResultSet {
         super(con.isTraced(), RedashPaginatorResultSet.class);
         this.con = con;
         this.execQueryCommand = execQueryCommand;
-        this.column = column;
-        this.sql = sql;
+        this.column = column == null ? null : column.trim();
+        this.sql = sql.trim();
         this.dsType = dsType;
-        System.out.println( dsType );
         this.executeNextFetch();
     }
     
@@ -68,47 +61,21 @@ public class RedashPaginatorResultSet extends GenericResultSet {
         this.rows = currentJo.getJSONObject("query_result").getJSONObject("data").getJSONArray("rows");
         this.result_id_list.add( execQueryCommand.getLastResultId() );
         this.currentResultSet = new RedashResultSet(con.isResultSetTraced(), currentJo, this.dsType);
-        //int columnId = this.currentResultSet.getInternalMetaData().findColumn( this.column );
-        this.columnType = JDBCType.valueOf( this.currentResultSet.getInternalMetaData().getColumnType( this.column ) );
-    }
-    
-    
-    private String getLastColumnValueAsSQL() {
-        switch( this.columnType ) {
-            case TIME_WITH_TIMEZONE:
-            case TIME: return String.format("time'%s'", lastColumnValue.toString() );
-            case DATE: return String.format("date'%s'", lastColumnValue.toString() );
-            case TIMESTAMP_WITH_TIMEZONE:
-            case TIMESTAMP: return String.format("timestamp'%s'", lastColumnValue.toString() );
-            case REAL:
-            case DECIMAL:
-            case NUMERIC:
-            case DOUBLE:
-            case FLOAT:
-            case TINYINT:
-            case SMALLINT:
-            case INTEGER:
-            case BIGINT: return lastColumnValue.toString();
-            case BOOLEAN: return lastColumnValue.toString();
-            case JAVA_OBJECT: return String.format("'%s'", lastColumnValue.toString() );
-            case ARRAY: return String.format("'%s'", lastColumnValue.toString() );
-            default:
-                return String.format("'%s'", lastColumnValue.toString() );
-        }
     }
     
     private String getPaginatorQuery() {
+        final int pagesize = con.getResultSetFetchSize();
         final String query;
         final String fetchLimit;
         if( this.dsType.equalsIgnoreCase("oracle") ) {
-            fetchLimit = String.format("OFFSET %d ROWS FETCH NEXT %d ROWS ONLY", page*PAGESIZE, PAGESIZE );
+            fetchLimit = String.format("OFFSET %d ROWS FETCH NEXT %d ROWS ONLY", page*pagesize, pagesize );
         } else {
-            fetchLimit = String.format("LIMIT %d OFFSET %d", PAGESIZE, page*PAGESIZE );
+            fetchLimit = String.format("LIMIT %d OFFSET %d", pagesize, page*pagesize );
         }
-        if( page == 0 ) {
+        if( this.column != null ) {
             query = "SELECT * FROM ( " + this.sql + " ) tmp_paginator ORDER BY " + this.column + " ASC " + fetchLimit;
         } else {
-            query = "SELECT * FROM ( " + this.sql + " ) tmp_paginator WHERE " + this.column + " > " + this.getLastColumnValueAsSQL()  + " ORDER BY " + this.column + " ASC " + fetchLimit;
+            query = this.sql + " " + fetchLimit;
         }
         logMethodWithReturn("getPaginatorQuery", query);
         return query;
@@ -119,9 +86,11 @@ public class RedashPaginatorResultSet extends GenericResultSet {
     public boolean next() throws SQLException {
         final boolean next = currentResultSet.next();
         if( next ) {
-            final Object lastRef = currentResultSet.getObject( this.column );
-            if( this.lastColumnValue == null || this.lastColumnValue.compareTo(lastRef) < 0 ) {
-                this.lastColumnValue = (Comparable<Object>) lastRef;
+            if( this.column != null ) {
+                final Object lastRef = currentResultSet.getObject( this.column );
+                if( this.lastColumnValue == null || this.lastColumnValue.compareTo(lastRef) < 0 ) {
+                    this.lastColumnValue = (Comparable<Object>) lastRef;
+                }
             }
             if( con.isResultSetTraced() ) logMethodWithReturn("next", true);
             this.rowNumber++;

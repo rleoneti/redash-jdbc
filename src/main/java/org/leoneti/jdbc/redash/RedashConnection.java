@@ -37,6 +37,8 @@ public class RedashConnection extends GenericConnection {
     private RedashDataSourcesCommand dsCommand;
     private RedashDatabaseMetaData metadata;
     private SQLWarning warning = null;
+    private RedashCacheControl cacheControl;
+    private int resultSetFetchSize;
     
     public RedashHttp getRedashHttp() { return rh; }
     
@@ -91,8 +93,17 @@ public class RedashConnection extends GenericConnection {
         this.metadata = new RedashDatabaseMetaData(this);
         this.queryCommand = new RedashQueryCommand(this);
         this.queryCommand.identifyOrCreateQueryId();
+        try {
+            this.cacheControl = new RedashCacheControl(this, Integer.valueOf( info.getProperty(RedashConstants.DRIVER_PROPERTY_RESULTSET_CACHE_TTL, "120") ) );
+        } catch (Exception e) {
+            this.cacheControl = new RedashCacheControl(this, 120);
+        }
+        try {
+            this.resultSetFetchSize = Integer.valueOf( info.getProperty(RedashConstants.DRIVER_PROPERTY_RESULTSET_FETCH_SIZE, "10000") );
+        } catch (Exception e) {
+            this.resultSetFetchSize = 10000;
+        }
     }
-    
 
     @Override
     public Statement createStatement() throws SQLException {
@@ -246,4 +257,11 @@ public class RedashConnection extends GenericConnection {
         this.warning = null;
     }
 
+    public RedashCacheControl getCacheControl() {
+        return cacheControl;
+    }
+    
+    public int getResultSetFetchSize() {
+        return resultSetFetchSize;
+    }
 }

@@ -27,7 +27,7 @@ public enum RedashCommands {
         if( this == SHOW_QUERY )
             return String.format( "(?i)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "\\s+(\\d+)" );
         if( this == PAGINATOR )
-            return String.format( "(?ims)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "\\s+(\\w+)\\s+(.*)" );
+            return String.format( "(?ims)%s%s", this.name().replaceAll("_", "[\\\\s_]*") , "(\\s+\\w+){0,1}\\s+(SELECT.*|WITH.*)" );
         return String.format( "(?i)%s", this.name().replaceAll("_", "[\\\\s_]*") );
     }
 

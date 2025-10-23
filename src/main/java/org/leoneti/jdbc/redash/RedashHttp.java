@@ -68,6 +68,7 @@ public class RedashHttp extends TraceLog {
         return request("POST", apipath, data, args );
     }
 
+    @SuppressWarnings("deprecation")
     public StringBuffer request(String method, String apipath, String data, Object... args) throws SQLException {
         if(isTraced()) logMethod("request", method, apipath, data, String.format( "[%s]",String.join(",",Arrays.stream(args).map(Object::toString).toArray(String[]::new)) ) );
     	HttpURLConnection con = null;

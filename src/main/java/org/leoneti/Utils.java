@@ -13,6 +13,10 @@
 package org.leoneti;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.JDBCType;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -68,6 +72,12 @@ public class Utils {
             log.log( Level.WARNING, String.format("toJDBCType(%s)", formatParameters(type)), e );
             return JDBCType.VARCHAR;
         }
+    }
+    
+    public static String md5(String data) throws NoSuchAlgorithmException {
+        MessageDigest md5 = MessageDigest.getInstance("MD5");
+        md5.update(StandardCharsets.UTF_8.encode(data));
+        return String.format("%032x", new BigInteger(1, md5.digest()));
     }
 
     public static void main(String[] args) {

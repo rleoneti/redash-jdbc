@@ -32,6 +32,9 @@ public @interface RedashConstants {
 
     public static final String DEFAULT_SCHEMA = "DEFAULT";
     
+    public static final String DRIVER_PROPERTY_RESULTSET_CACHE_TTL = "resultSet.cache.ttl";
+    
+    public static final String DRIVER_PROPERTY_RESULTSET_FETCH_SIZE = "resultSet.fetch.size";
     
     /*****************
      * HTTP Constants

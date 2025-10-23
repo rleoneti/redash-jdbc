@@ -17,7 +17,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.json.JSONObject;
+import org.leoneti.jdbc.redash.RedashCacheControl;
 import org.leoneti.jdbc.redash.RedashConnection;
+import org.leoneti.jdbc.redash.RedashDriver;
 import org.leoneti.jdbc.redash.RedashException;
 import org.leoneti.jdbc.redash.RedashHttp;
 
@@ -27,11 +29,13 @@ public class RedashExecuteQueryCommand implements Cloneable {
     private RedashQueryCommand queryCommand;
     private RedashHttp rh;
     private int last_result_id;
+    private RedashCacheControl cacheControl;
 
     public RedashExecuteQueryCommand(RedashConnection con) {
         this.queryCommand = con.getQueryCommand();
         this.rh = con.getRedashHttp().copy();
         this.last_result_id = -1;
+        this.cacheControl = con.getCacheControl();
     }
 
     public int getQueryId() {
@@ -57,8 +61,8 @@ public class RedashExecuteQueryCommand implements Cloneable {
         return jo;
     }
 
-    public JSONObject resultsByQueryDataId(int latest_query_data_id) throws SQLException {
-        final StringBuffer response = getRedashHttp().get("/api/query_results/%d", latest_query_data_id);
+    public JSONObject resultsByQueryDataId(int result_id) throws SQLException {
+        final StringBuffer response = getRedashHttp().get("/api/query_results/%d", result_id);
         final JSONObject jo = new JSONObject(response.toString());
         return jo;
     }
@@ -68,60 +72,68 @@ public class RedashExecuteQueryCommand implements Cloneable {
     }
 
     public JSONObject executeQuery(String sql) throws SQLException {
-        JSONObject jo = getQueryCommand().updateQuery(sql);
-
-        // {"id":22,"parameters":{},"apply_auto_limit":false,"max_age":0}
-        // /api/queries/22/results
-
-        final JSONObject postData = new JSONObject();
-        postData.put("id", getQueryId());
-        postData.put("parameters", new JSONObject());
-        postData.put("apply_auto_limit", true);
-        postData.put("max_age", 0);
-        if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, postData.toString());
-        StringBuffer response = getRedashHttp().post("/api/queries/%d/results", postData.toString(), getQueryId());
-        //System.out.println( response.toString());
-        jo = new JSONObject(response.toString());
-        if ( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
-            throw new SQLException(jo.getJSONObject("job").getString("error"));
-        }
-        String jobId = jo.getJSONObject("job").getString("id");
-        int c = 0;
-        while (true) {
-            try {
-                Thread.sleep((c < 5 ? 1000 : (c < 10 ? 2000 : (c < 15 ? 3000 : 4000))));
-            } catch (InterruptedException e) {
-                throw new SQLException(e);
-            }
-            if (this.cancelExecution || c > 100 ) {
-                this.cancelExecution = false;
-                return null;
-            }
-            response = getRedashHttp().get("/api/jobs/%s", jobId);
-            if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, "RESPONSE: " + response);
+        int result_id = this.cacheControl.checkAndGetCachedResult(sql);
+        if( result_id < 0 ) {
+            JSONObject jo = getQueryCommand().updateQuery(sql);
+    
+            // {"id":22,"parameters":{},"apply_auto_limit":false,"max_age":0}
+            // /api/queries/22/results
+    
+            final JSONObject postData = new JSONObject();
+            postData.put("id", getQueryId());
+            postData.put("parameters", new JSONObject());
+            postData.put("apply_auto_limit", true);
+            postData.put("max_age", 0);
+            if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, postData.toString());
+            StringBuffer response = getRedashHttp().post("/api/queries/%d/results", postData.toString(), getQueryId());
+            //System.out.println( response.toString());
             jo = new JSONObject(response.toString());
-            if( jo.has("job") ) {
-                //if (jo.getJSONObject("job").getInt("status") == 3)
-                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") ) {
-                    if( jo.getJSONObject("job").has("query_result_id") ) {
-                        this.last_result_id = jo.getJSONObject("job").getInt("query_result_id");
-                    } else {
-                        this.last_result_id = jo.getJSONObject("job").getInt("result_id");
-                    }
-                    break;
-                }
-                //if (jo.getJSONObject("job").getInt("status") == 4) {
-                if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("failed") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
-                    throw new RedashException(jo.getJSONObject("job"));
-                }
-            } else {
-                throw new RedashException(jo);
+            if ( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
+                throw new SQLException(jo.getJSONObject("job").getString("error"));
             }
-            c++;
+            String jobId = jo.getJSONObject("job").getString("id");
+            int c = 0;
+            while (true) {
+                try {
+                    this.cacheControl.cleanOlderCache();
+                    Thread.sleep((c < 5 ? 1000 : (c < 10 ? 2000 : (c < 15 ? 3000 : 4000))));
+                } catch (InterruptedException e) {
+                    throw new SQLException(e);
+                }
+                if (this.cancelExecution || c > 100 ) {
+                    this.cancelExecution = false;
+                    return null;
+                }
+                response = getRedashHttp().get("/api/jobs/%s", jobId);
+                if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, "RESPONSE: " + response);
+                jo = new JSONObject(response.toString());
+                if( jo.has("job") ) {
+                    //if (jo.getJSONObject("job").getInt("status") == 3)
+                    if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") ) {
+                        if( jo.getJSONObject("job").has("query_result_id") ) {
+                            result_id = jo.getJSONObject("job").getInt("query_result_id");
+                        } else {
+                            result_id = jo.getJSONObject("job").getInt("result_id");
+                        }
+                        break;
+                    }
+                    //if (jo.getJSONObject("job").getInt("status") == 4) {
+                    if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("FAILURE") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("failed") || jo.getJSONObject("job").get("status").toString().equals("4") ) {
+                        throw new RedashException(jo.getJSONObject("job"));
+                    }
+                } else {
+                    throw new RedashException(jo);
+                }
+                c++;
+            }
+            //this.latest_query_data_id = jo.getJSONObject("job").get("query_result_id");
+            //return results(getQueryId());
+            this.cacheControl.add(sql, result_id);
+        } else {
+            RedashDriver.log.info( "USING CACHED QUERY !!!!!!!!!!" );
         }
-        //this.latest_query_data_id = jo.getJSONObject("job").get("query_result_id");
-        //return results(getQueryId());
-        return resultsByQueryDataId(this.last_result_id);
+        this.last_result_id = result_id;
+        return resultsByQueryDataId(result_id);
     }
     
     public int getLastResultId() {
