@@ -110,10 +110,18 @@ public class RedashExecuteQueryCommand implements Cloneable {
                 if( jo.has("job") ) {
                     //if (jo.getJSONObject("job").getInt("status") == 3)
                     if( jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("finished") || jo.getJSONObject("job").get("status").toString().equalsIgnoreCase("SUCCESS") || jo.getJSONObject("job").get("status").toString().equals("3") ) {
-                        if( jo.getJSONObject("job").has("query_result_id") ) {
-                            result_id = jo.getJSONObject("job").getInt("query_result_id");
-                        } else {
-                            result_id = jo.getJSONObject("job").getInt("result_id");
+                        //if( jo.getJSONObject("job").has("query_result_id") ) {
+                        //    result_id = jo.getJSONObject("job").getInt("query_result_id");
+                        //} else {
+                        //    result_id = jo.getJSONObject("job").getInt("result_id");
+                        //}
+                        result_id = extractResultId(jo.getJSONObject("job"));
+                        if( result_id < 0 ) {
+                            // Newer Redash versions do not return the result id on the finished job; use the query's latest result
+                            result_id = latestQueryDataId(getQueryId());
+                        }
+                        if( result_id < 0 ) {
+                            throw new SQLException("Unable to find the result id in Redash job response: " + jo.toString());
                         }
                         break;
                     }
@@ -136,6 +144,34 @@ public class RedashExecuteQueryCommand implements Cloneable {
         return resultsByQueryDataId(result_id);
     }
     
+    private int extractResultId(JSONObject job) {
+        for( String key : new String[] { "query_result_id", "result_id", "result" } ) {
+            if( !job.has(key) || job.isNull(key) ) continue;
+            final Object value = job.get(key);
+            if( value instanceof Number ) {
+                return ((Number) value).intValue();
+            }
+            if( value instanceof JSONObject ) {
+                if( ((JSONObject) value).has("id") ) return ((JSONObject) value).getInt("id");
+                continue;
+            }
+            try {
+                return Integer.parseInt(value.toString());
+            } catch (NumberFormatException e) {
+                if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, "Ignoring non numeric job." + key + ": " + value);
+            }
+        }
+        return -1;
+    }
+
+    private int latestQueryDataId(int queryId) throws SQLException {
+        final StringBuffer response = getRedashHttp().get("/api/queries/%d", queryId);
+        if(isTraced()) Logger.getLogger("redash.jdbc").log(Level.INFO, "RESPONSE: " + response);
+        final JSONObject jo = new JSONObject(response.toString());
+        if( jo.has("message") ) throw new RedashException(jo);
+        return jo.isNull("latest_query_data_id") ? -1 : jo.getInt("latest_query_data_id");
+    }
+
     public int getLastResultId() {
         return last_result_id;
     }
